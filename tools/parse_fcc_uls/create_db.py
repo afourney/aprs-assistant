@@ -67,6 +67,32 @@ CREATE TABLE IF NOT EXISTS AM (
     Trustee_Name VARCHAR(50)
 );
 """  
+
+create_view = """
+CREATE VIEW IF NOT EXISTS CallSignView AS
+SELECT
+    EN.Unique_System_Identifier,
+    EN.ULS_File_Number,
+    EN.Call_Sign,
+    EN.Entity_Type,
+    EN.Entity_Name,
+    EN.First_Name,
+    EN.MI AS Middle_Initial,
+    EN.Last_Name,
+    EN.Street_Address,
+    EN.City,
+    EN.State,
+    EN.Zip_Code,
+    EN.Status_Code,
+    EN.Status_Date,
+    EN.Linked_Call_Sign,
+    AM.Operator_Class,
+    AM.Group_Code,
+    AM.Region_Code
+FROM EN
+    LEFT OUTER JOIN AM ON EN.Unique_System_Identifier = AM.Unique_System_Identifier;
+"""
+
   
 # Connect to the SQLite database  
 conn = sqlite3.connect(db_filename)  
@@ -75,6 +101,7 @@ cursor = conn.cursor()
 # Create the "EN" table  
 cursor.execute(create_en_table_query)  
 cursor.execute(create_am_table_query)  
+cursor.execute(create_view)  
   
 # Function to insert records into the "EN" table  
 def insert_en_record(record):  

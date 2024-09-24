@@ -57,12 +57,7 @@ def generate_reply(fromcall, message):
 
 def _generate_reply(fromcall, messages):
 
-    # Truncate the chat history
-    inner_messages = [ m for m in messages ] # clone
-    if len(inner_messages) > MAX_MESSAGES:
-        inner_messages = inner_messages[-1*MAX_MESSAGES:] 
-
-    # Generate the system message
+     # Generate the system message
     dts = str(datetime.datetime.now(datetime.timezone.utc)).split(".")[0] + " UTC"
 
     position = get_position(fromcall)
@@ -83,26 +78,45 @@ You are familiar with HAM conventions and shorthands like QSO, CQ, and 73. In al
 
 At present, you are exchanging messages with the owner of callsign {fromcall} (and ONLY {fromcall}!). REFER TO THEM BY THEIR CALLSIGN {fromcall}, rather than by their name. Do not imply that you can contact other operators or people -- you can't.{callsign_str}{position_str}
 
-IN THE EVENT OF AN EMERGENCY YOU MUST CONVEY THE FOLLOWING EXACT PHRASE:
+IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN ALERT ALERT AUTHORITIES. INSTEAD, YOU *MUST* CONVEY THE FOLLOWING EXACT PHRASE:
 
-  "CALL 911! As an AI, I can't! Also don't trust me. I make stuff up."
-
-IN AN EMERGENCY, DO NOT OFFER OR IMPLY THAT YOU CAN SEND HELP. THEN CONTINUE TO ANSWER LATER QUESTIONS.
+  "CALL 911! As an AI, I can't! Don't rely on me - I often make stuff up."
 
 The current date and time is {dts}.
 """,
     }
+
+    # Make sure the last message from the user
+    assert messages[-1]["role"] == "user"
+
+    # Update the outer messages to include the system message (which is always first)
+    if messages[0]["role"] == "system":
+        messages[0] = system_message
+    else:
+        # The last message is always the most recent user input
+        # If there's only one message, it's likey the user
+        messages.insert(0, system_message)
+
+    # Truncate the chat history (removing, then re-adding the system message)
+    inner_messages = [ m for m in messages ] # clone
+    inner_messages.pop(0)
+    if len(inner_messages) > MAX_MESSAGES:
+        inner_messages = inner_messages[-1*MAX_MESSAGES:] 
     inner_messages.insert(0, system_message)
-    print(system_message["content"])
 
     # Begin answering the question
-    message = inner_messages.pop()["content"]
+    message = inner_messages.pop()
+    assert message["role"] == "user"
 
     # Let's guess the intent
     inner_messages.append({"role": "user", "content": f"{fromcall} wrote \"{message}\". What are they likely asking?"})
     response = gpt(inner_messages)
-    print(response.content)
+    # print(response.content)
     inner_messages.append(response)
+
+    # Exit early if an emergency was detected
+    if any(keyphrase in response.content.upper() for keyphrase in ["CALL 911"]):
+        return "CALL 911! As an AI, I can't! Don't rely on me - I often make stuff up."
 
     # Determine if it can be answered directly or if we should search
     tools = [TOOL_BAND_CONDITIONS, TOOL_REGIONAL_WEATHER, TOOL_CALLSIGN_SEARCH]
@@ -135,7 +149,7 @@ The current date and time is {dts}.
         for tool_call in response.tool_calls:
             function_name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
-            print(f"Calling: {function_name}")
+            # print(f"Calling: {function_name}")
 
             # Step 3: Call the function and retrieve results. Append the results to the messages list.
             if function_name == TOOL_WEB_SEARCH["function"]["name"]:
@@ -177,7 +191,7 @@ The current date and time is {dts}.
             else:
                 results = f"Unknown function: {function_name}"
 
-            print(f"Results:\n{results}")
+            # print(f"Results:\n{results}")
 
             tool_response_msg = {
                 "role":"tool",
@@ -188,7 +202,7 @@ The current date and time is {dts}.
             inner_messages.append(tool_response_msg)
             messages.append(tool_response_msg) # Add it to the conversation as well
 
-    inner_messages.append({ "role": "user", "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly. Refer to them by their call sign rather than their name. Remember your 'IN CASE OF EMERGENCY' instructions."})
+    inner_messages.append({ "role": "user", "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly."})
     reply = gpt(inner_messages).content
 
     if len(reply) > 70: 
@@ -204,13 +218,13 @@ def _load_chat_history(callsign):
 
             # Check for timeouts
             if history["time"] + SESSION_TIMEOUT < time.time():
-                print(f"{callsign}'s session timed out. Starting new session.")
+                 # print(f"{callsign}'s session timed out. Starting new session.")
                 _reset_chat_history(callsign)
                 return []
             else:
                 return history["messages"]
     else:
-        print(f"{callsign}'s history is empty. Starting new session.")
+        # print(f"{callsign}'s history is empty. Starting new session.")
         return []
 
 

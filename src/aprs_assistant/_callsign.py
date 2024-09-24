@@ -10,6 +10,7 @@ import maidenhead
 
 from ._cache import read_cache, write_cache
 from ._constants import FCC_DATABASE, SECONDS_IN_MINUTE, USER_AGENT
+from ._itu_prefixes import ITU_CALLSIGN_PREFIXES
 from ._location import geocode
 
 FCC_CLASS_CODES = {
@@ -71,6 +72,19 @@ def get_callsign_info(callsign, include_address=True):
 
         return result
 
+    # No FCC record, but what else can we find?
+    itu_country = itu_prefix_lookup(callsign)
+    if itu_country:
+        return f"No information about {callsign}, but the call sign was likely issued by {itu_country}."
+
+    return None
+
+
+def itu_prefix_lookup(callsign):
+    callsign = callsign.strip().upper()
+    for prefix in ITU_CALLSIGN_PREFIXES:
+        if callsign.startswith(prefix[0]):
+            return prefix[1]
     return None
 
 

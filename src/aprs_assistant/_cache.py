@@ -13,16 +13,16 @@ def read_cache(key):
     file_path = os.path.join(CACHE_DIR, hkey + ".json")
 
     if not os.path.isfile(file_path):
-        print(f"Cache miss: {file_path}")
+        # print(f"Cache miss: {file_path}")
         return None
 
     with open(file_path, "rt") as fh:
         file_data = json.loads(fh.read())
         if time.time() > file_data["expires"]:
-            print(f"Cache expired: {file_path}")
+            # print(f"Cache expired: {file_path}")
             return None
         else:
-            print(f"Cache hit: {file_path}")
+            # print(f"Cache hit: {file_path}")
             return file_data["data"]
 
 

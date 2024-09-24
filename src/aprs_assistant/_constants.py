@@ -10,6 +10,7 @@ DATA_DIR = os.path.join(os.getcwd(), "data")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 CHATS_DIR = os.path.join(DATA_DIR, "chats")
 LABELED_DIR = os.path.join(DATA_DIR, "labeled")
+FCC_DATABASE = os.path.join(DATA_DIR, "fcc_uls.db")
 
 USER_AGENT = "aprs-assistant/" + __version__
 

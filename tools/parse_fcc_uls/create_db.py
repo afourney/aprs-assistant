@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS AM (
 create_view = """
 CREATE VIEW IF NOT EXISTS CallSignView AS
 SELECT
+    EN.Service,
     EN.Unique_System_Identifier,
     EN.ULS_File_Number,
     EN.Call_Sign,

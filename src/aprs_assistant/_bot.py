@@ -15,6 +15,7 @@ from ._location import get_position
 from ._bing import bing_search
 from ._bandcond import get_band_conditions
 from ._weather import get_weather
+from ._callsign import get_callsign_info
 
 from ._tool_definitions import (
     TOOL_WEB_SEARCH,
@@ -60,25 +61,40 @@ def _generate_reply(fromcall, messages):
         inner_messages = inner_messages[-1*MAX_MESSAGES:] 
 
     # Generate the system message
-    dts = datetime.datetime.now()
+    dts = str(datetime.datetime.now(datetime.timezone.utc)).split(".")[0] + " UTC"
 
     position = get_position(fromcall)
     position_str = ""
     if position is not None:
-        position_str = " Their last known position is:\n\n" + json.dumps(position, indent=4)
+        position_str = "\n\nTheir last known position is:\n\n" + json.dumps(position, indent=4)
+
+    callsign_info = get_callsign_info(fromcall)
+    callsign_str = ""
+    if callsign_info:
+        callsign_str = f"\n\nYou looked up {fromcall}'s callsign and found:\n\n{callsign_info}\n\n"
 
     system_message = {
         "role": "system", 
-        "content": f"""You are an AI HAM radio operator, with call sign {BOT_CALLSIGN}. You were created by KK7CMT. You are at home, in your cozy ham shack, monitoring the gobal APRS network. You have a computer and high-speed access to the internet. You and answering questions from other human operators in the field who lack an internet connection. To this end, you are relaying vital information. Questions can be about anything -- not just HAM radio.  You are familiar with HAM conventions and shorthands like QSO, CQ, and 73. The current date and time is {dts}. In all interactions, following US FCC guidelines, you will refrain from using profane or obscene language and avoid expressing overtly political commentary or opinion (reporting news is fine).
+        "content": f"""You are an AI HAM radio operator, with call sign {BOT_CALLSIGN}. You were created by KK7CMT. You are at home, in your cozy ham shack, monitoring the gobal APRS network. You have a computer and high-speed access to the Internet. You are answering questions from other human operators in the field who lack an internet connection. To this end, you are relaying vital information. Questions can be about anything -- not just HAM radio.
 
-At present, you are exchanging messages with the owner of callsign {fromcall}.{position_str}
+You are familiar with HAM conventions and shorthands like QSO, CQ, and 73. In all interactions you will follow US FCC guidelines. In particular, you will conduct business in English, and you will avoid using profane or obscene language, and avoid expressing overtly political commentary or opinion (reporting news is fine).
+
+At present, you are exchanging messages with the owner of callsign {fromcall} (and ONLY {fromcall}!). REFER TO THEM BY THEIR CALLSIGN {fromcall}, rather than by their name. Do not imply that you can contact other operators or people -- you can't.{callsign_str}{position_str}
+
+IN THE EVENT OF AN EMERGENCY YOU MUST CONVEY THE FOLLOWING EXACT PHRASE:
+
+  "CALL 911! As an AI, I can't! Also don't trust me. I make stuff up."
+
+IN AN EMERGENCY, DO NOT OFFER OR IMPLY THAT YOU CAN SEND HELP. THEN CONTINUE TO ANSWER LATER QUESTIONS.
+
+The current date and time is {dts}.
 """,
     }
     inner_messages.insert(0, system_message)
+    print(system_message["content"])
 
     # Begin answering the question
     message = inner_messages.pop()["content"]
-    print(f"Message: {message}") 
 
     # Let's guess the intent
     inner_messages.append({"role": "user", "content": f"{fromcall} wrote \"{message}\". What are they likely asking?"})
@@ -131,7 +147,7 @@ At present, you are exchanging messages with the owner of callsign {fromcall}.{p
                 "content": results
             })
 
-    inner_messages.append({ "role": "user", "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly."})
+    inner_messages.append({ "role": "user", "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly. Refer to them by their call sign rather than their name. Remember your 'IN CASE OF EMERGENCY' instructions."})
     reply = gpt(inner_messages).content
 
     if len(reply) > 70: 

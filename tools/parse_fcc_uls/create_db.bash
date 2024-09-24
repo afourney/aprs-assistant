@@ -18,8 +18,9 @@ else
     read -p "fcc_uls.db already exists. Overwrite? " yn
     if [[ "$yn" =~ "y" ]]; then
     	echo "Backing up 'fcc_uls.db' to 'fcc_uls.bak'"
-        mv fcc_uls.db fcc_uls.db.old
+        mv fcc_uls.db fcc_uls.db.bak
     	echo "Overwriting sqlite database 'fcc_uls.db'"
     	python create_db.py
+    	echo "Database 'fcc_uls.db' created. Copy this to the APRS Assistant ./data directory to enable license lookups." 
     fi
 fi

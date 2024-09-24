@@ -11,7 +11,7 @@ import datetime
 
 from ._constants import BOT_CALLSIGN, CHATS_DIR, LABELED_DIR, SESSION_TIMEOUT
 from ._gpt import gpt
-from ._location import get_position
+from ._location import get_position, geocode
 from ._bing import bing_search
 from ._bandcond import get_band_conditions
 from ._weather import get_weather
@@ -20,7 +20,9 @@ from ._callsign import get_callsign_info
 from ._tool_definitions import (
     TOOL_WEB_SEARCH,
     TOOL_USER_WEATHER,
+    TOOL_REGIONAL_WEATHER,
     TOOL_BAND_CONDITIONS,
+    TOOL_CALLSIGN_SEARCH,
 )
 
 MAX_MESSAGES = 20
@@ -103,7 +105,7 @@ The current date and time is {dts}.
     inner_messages.append(response)
 
     # Determine if it can be answered directly or if we should search
-    tools = [TOOL_BAND_CONDITIONS]
+    tools = [TOOL_BAND_CONDITIONS, TOOL_REGIONAL_WEATHER, TOOL_CALLSIGN_SEARCH]
 
     # API key needed for web search
     if len(os.environ.get("BING_API_KEY", "").strip()) > 0:
@@ -122,6 +124,14 @@ The current date and time is {dts}.
 
     # Handle any tool call results
     if response.tool_calls:
+
+        # Add the tool call to the global messages
+        mdict = {}
+        for k,v in response.dict().items():
+            if v is not None:
+                mdict[k] = v
+        messages.append(mdict)
+
         for tool_call in response.tool_calls:
             function_name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
@@ -130,22 +140,53 @@ The current date and time is {dts}.
             # Step 3: Call the function and retrieve results. Append the results to the messages list.
             if function_name == TOOL_WEB_SEARCH["function"]["name"]:
                 results = bing_search(args["query"])
+
+            elif function_name == TOOL_CALLSIGN_SEARCH["function"]["name"]:
+                results = get_callsign_info(args["callsign"])
+                if results is None or results.strip() == "":
+                    results = f"No information about call sign: {args['callsign']}"
+
             elif function_name == TOOL_BAND_CONDITIONS["function"]["name"]:
                 results = get_band_conditions()
+
             elif function_name == TOOL_USER_WEATHER["function"]["name"]:
                 country_code = position.get("address", {}).get("country_code", "")
                 results = get_weather(lat=position["latitude"], lon=position["longitude"], metric=False if country_code == "us" else True)
+
+            elif function_name == TOOL_REGIONAL_WEATHER["function"]["name"]:
+
+                # Units preference
+                country_code = None
+                if position:
+                    country_code = position.get("address", {}).get("country_code", "")
+
+                weather_loc = geocode(
+                    city=args.get("city", None),
+                    state=args.get("state", None),
+                    country=args.get("country", None),
+                    postalcode=args.get("postalcode", None)
+                )
+                if weather_loc is None:
+                    results = "Unknown location."
+                else:
+                    results = get_weather(
+                        lat=weather_loc["lat"],
+                        lon=weather_loc["lon"],
+                        metric=False if country_code == "us" else True, # User's location, (local preference)
+                    )
             else:
                 results = f"Unknown function: {function_name}"
 
             print(f"Results:\n{results}")
 
-            inner_messages.append({
+            tool_response_msg = {
                 "role":"tool",
                 "tool_call_id":tool_call.id,
                 "name": tool_call.function.name,
                 "content": results
-            })
+            }
+            inner_messages.append(tool_response_msg)
+            messages.append(tool_response_msg) # Add it to the conversation as well
 
     inner_messages.append({ "role": "user", "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly. Refer to them by their call sign rather than their name. Remember your 'IN CASE OF EMERGENCY' instructions."})
     reply = gpt(inner_messages).content

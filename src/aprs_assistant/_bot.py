@@ -16,7 +16,7 @@ from ._gpt import gpt
 from ._location import get_position, geocode
 from ._bing import bing_search
 from ._bandcond import get_band_conditions
-from ._weather import get_weather
+from ._weather import get_weather, format_noaa_alerts, get_noaa_alerts
 from ._callsign import get_callsign_info
 
 from ._tool_definitions import (
@@ -65,6 +65,7 @@ def _generate_reply(fromcall, messages):
     user_local_time = None
     user_local_tzname = None
     position_str = ""
+    bulletins_str = ""
     dts = ""
 
     if position is not None:
@@ -78,6 +79,16 @@ def _generate_reply(fromcall, messages):
                   user_local_time.strftime("the current date is %A, %B %d, %Y, and " + \
                   "the local time is %I:%M:%S %p. (ISO8601 format: " + user_local_time.isoformat(timespec="seconds")) + ")"
 
+        # Get any weather bulletins
+        bulletins_str = format_noaa_alerts(get_noaa_alerts(position["latitude"], position["longitude"]), abbreviated=True)
+        if bulletins_str is None:
+            bulletins_str = ""
+        else:
+            bulletins_str = bulletins_str.strip()
+
+        if len(bulletins_str) > 0:
+            bulletins_str = f"\n\nThe following important bulletins are active in {fromcall}'s area:\n\n{bulletins_str}"
+
     # Either the position isn't known, or the timezone could not be resolved. Use UTC.
     if user_local_time is None:
         user_local_time = datetime.datetime.now(tz=utc)
@@ -89,7 +100,7 @@ def _generate_reply(fromcall, messages):
     callsign_info = get_callsign_info(fromcall)
     callsign_str = ""
     if callsign_info:
-        callsign_str = f"\n\nYou looked up {fromcall}'s callsign and found:\n\n{callsign_info}\n\n"
+        callsign_str = f"\n\nYou looked up {fromcall}'s callsign and found:\n\n{callsign_info}"
 
     system_message = {
         "role": "system", 
@@ -97,11 +108,9 @@ def _generate_reply(fromcall, messages):
 
 You are familiar with HAM conventions and shorthands like QSO, CQ, and 73. In all interactions you will follow US FCC guidelines. In particular, you will conduct business in English, and you will avoid using profane or obscene language, and avoid expressing overtly political commentary or opinion (reporting news is fine).
 
-At present, you are exchanging messages with the owner of callsign {fromcall} (and ONLY {fromcall}!). REFER TO THEM BY THEIR CALLSIGN {fromcall}, rather than by their name. Do not imply that you can contact other operators or people -- you can't.{callsign_str}{position_str}
+At present, you are exchanging messages with the owner of callsign {fromcall} (and ONLY {fromcall}!). REFER TO THEM BY THEIR CALLSIGN {fromcall}, rather than by their name. Do not imply that you can contact other operators or people -- you can't.{callsign_str}{position_str}{bulletins_str}
 
-IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN ALERT ALERT AUTHORITIES. INSTEAD, YOU *MUST* CONVEY THE FOLLOWING EXACT PHRASE:
-
-  "CALL 911! As an AI, I can't! Don't rely on me - I make stuff up."
+IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN ALERT AUTHORITIES -- AS AN AI, YOU CAN'T.
 
 {dts}
 """,
@@ -136,10 +145,6 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
     response = gpt(inner_messages)
     # print(response.content)
     inner_messages.append(response)
-
-    # Exit early if an emergency was detected
-    if any(keyphrase in response.content.upper() for keyphrase in ["CALL 911"]):
-        return "CALL 911! As an AI, I can't! Don't rely on me - I make stuff up."
 
     # Determine if it can be answered directly or if we should search
     tools = [TOOL_BAND_CONDITIONS, TOOL_REGIONAL_WEATHER, TOOL_CALLSIGN_SEARCH]

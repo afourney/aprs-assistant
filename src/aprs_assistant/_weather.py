@@ -48,11 +48,18 @@ WEATHER_CODES = {
 def get_weather(lat, lon, metric=True):
     meteo_data = get_open_meteo_weather(lat, lon, metric=metric)
 
+    result = ""
+
+    # Bulletins
+    bulletins = format_noaa_alerts(_get_noaa_alerts(lat, lon), abbreviated=True)
+    if bulletins is not None and bulletins.strip() != "":
+        result += "# Bulletins\n===========\n" + bulletins.strip() + "\n\n"
+
     # Current conditions
     current_cond_time = re.sub("T", " ", meteo_data["current"]["time"]) + " " + meteo_data["timezone_abbreviation"] 
 
-    result = f"# Current Conditions (as of {current_cond_time})"
-    result += "\n" + ("="*len(result)) + "\n"
+    current_title = f"# Current Conditions (as of {current_cond_time})"
+    result += current_title + "\n" + ("="*len(current_title)) + "\n"
     for k in meteo_data["current"]:
         if k in ["time", "interval", "is_day"]:
             continue
@@ -128,3 +135,70 @@ def _get_open_meteo_weather(lat, lon, metric=True):
     )
     response.raise_for_status()
     return response.json()
+
+
+def get_noaa_alerts(lat, lon):
+    cache_key = f"get_noaa_alerts:{lat}:{lon}"
+    cached_data = read_cache(cache_key)
+    if cached_data is not None:
+        return cached_data
+    else:
+        data = _get_noaa_alerts(lat, lon)
+        write_cache(cache_key, data, expires_in=SECONDS_IN_MINUTE*5)
+        return data
+
+
+def _get_noaa_alerts(lat, lon):
+    # Documentation: https://www.weather.gov/documentation/services-web-api#/default/alerts_active
+    headers = { 
+        "Accept": "application/ld+json",
+        "User-Agent": USER_AGENT 
+    }
+    response = requests.get(
+        f"https://api.weather.gov/alerts/active?point={lat},{lon}",
+        headers=headers,
+        stream=False
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def format_noaa_alerts( alerts, abbreviated=False ):
+    results = []
+    for a in alerts.get("@graph", []):
+        fa = format_noaa_alert( a, abbreviated=abbreviated )
+        if fa is not None:
+            fa = fa.strip()
+            if fa != "":
+                results.append(fa)
+
+    return "\n\n".join(results)
+
+
+def format_noaa_alert( alert, abbreviated=False ):
+    abbreviated=True
+    if abbreviated:
+        parameters = alert.get("parameters", None)
+        if parameters is None:
+            return None
+        headlines = parameters.get("NWSheadline", [])
+        if len(headlines) == 0:
+            headlines = [ alert.get("headline", "") ]
+        headlines = "\n".join( [f"**{h}**" for h in headlines] ) 
+
+        instruction = alert.get("instruction", None)
+        if instruction is None or instruction.strip() == "":
+            instruction = alert.get("response", "")
+        instruction = re.sub(r"\s+", " ", instruction).strip()
+
+        flags = []
+        for f in [ alert.get("severity", None), alert.get("urgency", None), alert.get("certainty", None), ]:
+            if f is not None and f.strip() not in ["", "Unknown", "Past"]:
+                flags.append(f.strip())
+        flags = " / ".join(flags)
+
+        return f"{headlines}\n{flags}\nInstruction: {instruction}"
+    else:
+        result = ""
+
+

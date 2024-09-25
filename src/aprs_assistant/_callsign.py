@@ -25,7 +25,7 @@ FCC_CLASS_CODES = {
 def get_callsign_info(callsign, include_address=True):
     
     fcc_record = fcc_callsign_lookup(callsign)
-    if fcc_record == None:
+    if fcc_record is None:
         fcc_record = fcc_callsign_lookup(callsign.split("-")[0])
 
     if fcc_record:
@@ -90,8 +90,8 @@ def itu_prefix_lookup(callsign):
 
 def fcc_callsign_lookup(callsign):
 
+    # Database not found
     if not os.path.isfile(FCC_DATABASE):
-        print("Warning: FCC Database not found at '{FCC_DATABASE}'")
         return None
 
     # Connect to the SQLite database

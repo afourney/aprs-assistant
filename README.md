@@ -85,7 +85,7 @@ Note: `response` can be None
 - Weather watches, warnings and alerts provided by [weather.gov](https://www.weather.gov/documentation/services-web-api)
 - Reverse geocoding provided by [Nominatim](https://nominatim.org/release-docs/develop/api/Overview/)
 - Band conditions and space weather provided by [hamsql.com](https://www.hamqsl.com/#addrssxml)
-- FFC call sign information provided by [FCC public access](https://www.fcc.gov/uls/transactions/daily-weekly#weekly-files) program
+- FCC call sign information provided by [FCC public access](https://www.fcc.gov/uls/transactions/daily-weekly#weekly-files) program
 - Web search and news results provided by the [Bing Search API](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api)
 
 ## License

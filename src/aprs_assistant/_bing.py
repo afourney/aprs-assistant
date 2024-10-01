@@ -13,8 +13,8 @@ import os
 from urllib.parse import quote, quote_plus, unquote, urlparse, urlunparse
 
 
-def bing_search(query, interleave_results=True):
-    results = _bing_api_call(query)
+def bing_search(query, lat=None, lon=None, interleave_results=True):
+    results = _bing_api_call(query, lat, lon)
     snippets = {}
 
     def _processFacts(elm):
@@ -154,11 +154,17 @@ def bing_search(query, interleave_results=True):
     return f"## A Bing search for '{query}' found {idx} results:\n\n" + content.strip()
 
 
-def _bing_api_call(query: str):
+def _bing_api_call(query, lat=None, lon=None):
     # Prepare the request parameters
     request_kwargs = {}
     request_kwargs["headers"] = {}
     request_kwargs["headers"]["Ocp-Apim-Subscription-Key"] = os.environ["BING_API_KEY"]
+
+    # Specify the user's location
+    if lat is not None or lon is not None:
+        if lat is None or lon is None:
+            raise ValueError("If lat is specified, lon must also be specified.")
+        request_kwargs["headers"]["X-Search-Location"] = f"lat:{lat};long:{lon};re:22m"
 
     request_kwargs["params"] = {}
     request_kwargs["params"]["q"] = query
@@ -184,18 +190,3 @@ def _markdown_link(anchor, href):
         return f"[{anchor}]({href})"
     except ValueError:  # It's not clear if this ever gets thrown
         return f"[{anchor}]({href})"
-
-
-def _bing_news_call():
-    request_kwargs = {}
-    request_kwargs["headers"] = {}
-    request_kwargs["headers"]["Ocp-Apim-Subscription-Key"] = os.environ["BING_API_KEY"]
-    request_kwargs["stream"] = False
-
-    # Make the request
-    response = requests.get(
-        "https://api.bing.microsoft.com/v7.0/news/search?q=&mkt=en-us", **request_kwargs
-    )
-    response.raise_for_status()
-    results = response.json()
-    return results

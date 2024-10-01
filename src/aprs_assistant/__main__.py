@@ -39,4 +39,4 @@ while True:
     if request == "quit" or request == "exit":
         break
     response = generate_reply(fromcall, request)
-    print(f"\n{BOT_CALLSIGN}: {response}\n")
+    print(f"\n{BOT_CALLSIGN()}: {response}\n")

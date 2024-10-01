@@ -216,7 +216,14 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
 
             # Step 3: Call the function and retrieve results. Append the results to the messages list.
             if function_name == TOOL_WEB_SEARCH["function"]["name"]:
-                results = bing_search(args["query"])
+                if position is not None:
+                    results = bing_search(
+                        args["query"],
+                        lat=position["latitude"],
+                        lon=position["longitude"],
+                    )
+                else:
+                    results = bing_search(args["query"])
 
             elif function_name == TOOL_CALLSIGN_SEARCH["function"]["name"]:
                 results = get_callsign_info(args["callsign"])

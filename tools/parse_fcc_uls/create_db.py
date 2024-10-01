@@ -1,16 +1,16 @@
-import sqlite3  
+import sqlite3
 import zipfile
 import io
 import sys
-  
-# Define the database filename and data files  
-db_filename = 'fcc_uls.db'  
+
+# Define the database filename and data files
+db_filename = "fcc_uls.db"
 amat_filename = "l_amat.zip"
 gmrs_filename = "l_gmrs.zip"
-en_data_filename = 'EN.dat'  
-am_data_filename = 'AM.dat'  
-  
-# SQL query to create the "EN" table  
+en_data_filename = "EN.dat"
+am_data_filename = "AM.dat"
+
+# SQL query to create the "EN" table
 create_en_table_query = """  
 CREATE TABLE IF NOT EXISTS EN (  
     Service VARCHAR(5),
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS AM (
     Previous_Operator_Class VARCHAR(1),
     Trustee_Name VARCHAR(50)
 );
-"""  
+"""
 
 create_view = """
 CREATE VIEW IF NOT EXISTS CallSignView AS
@@ -98,22 +98,23 @@ create_en_callsign_index = "CREATE INDEX en_callsign_index ON EN (Call_Sign);"
 create_am_callsign_index = "CREATE INDEX am_callsign_index ON AM (Call_Sign);"
 create_en_id_index = "CREATE UNIQUE INDEX en_id_index ON EN (Unique_System_Identifier);"
 create_am_id_index = "CREATE UNIQUE INDEX am_id_index ON AM (Unique_System_Identifier);"
-  
-# Connect to the SQLite database  
-conn = sqlite3.connect(db_filename)  
-cursor = conn.cursor()  
-  
-# Create the "EN" table  
-cursor.execute(create_en_table_query)  
-cursor.execute(create_am_table_query)  
+
+# Connect to the SQLite database
+conn = sqlite3.connect(db_filename)
+cursor = conn.cursor()
+
+# Create the "EN" table
+cursor.execute(create_en_table_query)
+cursor.execute(create_am_table_query)
 cursor.execute(create_view)
 cursor.execute(create_en_callsign_index)
 cursor.execute(create_am_callsign_index)
 cursor.execute(create_en_id_index)
 cursor.execute(create_am_id_index)
-  
-# Function to insert records into the "EN" table  
-def insert_en_record(record):  
+
+
+# Function to insert records into the "EN" table
+def insert_en_record(record):
     insert_query = """  
     INSERT INTO EN (  
         Service,
@@ -147,11 +148,12 @@ def insert_en_record(record):
         Linked_Unique_System_Identifier,  
         Linked_Call_Sign  
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);  
-    """  
-    cursor.execute(insert_query, record)  
+    """
+    cursor.execute(insert_query, record)
 
-# Function to insert records into the "AM" table  
-def insert_am_record(record):  
+
+# Function to insert records into the "AM" table
+def insert_am_record(record):
     insert_query = """  
     INSERT INTO AM (  
         Unique_System_Identifier,
@@ -172,37 +174,38 @@ def insert_am_record(record):
         Previous_Operator_Class,
         Trustee_Name  
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);  
-    """  
-    cursor.execute(insert_query, record) 
+    """
+    cursor.execute(insert_query, record)
+
 
 # Read the files add the rows
-with zipfile.ZipFile(amat_filename, 'r') as zh:
+with zipfile.ZipFile(amat_filename, "r") as zh:
     with zh.open(en_data_filename) as file:
-        for line in io.TextIOWrapper(file, encoding='utf-8'):
-            record = line.strip().split('|')[1:]  
+        for line in io.TextIOWrapper(file, encoding="utf-8"):
+            record = line.strip().split("|")[1:]
             if len(record) != 29:
                 sys.stderr.write("Warning. Wrong number of EN columns: " + line)
                 continue
-            insert_en_record(["AMAT"] + record)  
+            insert_en_record(["AMAT"] + record)
 
-with zipfile.ZipFile(gmrs_filename, 'r') as zh:
+with zipfile.ZipFile(gmrs_filename, "r") as zh:
     with zh.open(en_data_filename) as file:
-        for line in io.TextIOWrapper(file, encoding='utf-8'):
-            record = line.strip().split('|')[1:]  
+        for line in io.TextIOWrapper(file, encoding="utf-8"):
+            record = line.strip().split("|")[1:]
             if len(record) != 29:
                 sys.stderr.write("Warning. Wrong number of EN columns: " + line)
                 continue
-            insert_en_record(["GMRS"] + record)  
+            insert_en_record(["GMRS"] + record)
 
-with zipfile.ZipFile(amat_filename, 'r') as zh:
+with zipfile.ZipFile(amat_filename, "r") as zh:
     with zh.open(am_data_filename) as file:
-        for line in io.TextIOWrapper(file, encoding='utf-8'):
-            record = line.strip().split('|')[1:]  
+        for line in io.TextIOWrapper(file, encoding="utf-8"):
+            record = line.strip().split("|")[1:]
             if len(record) != 17:
                 sys.stderr.write("Warning. Wrong number of AM columns: " + line)
                 continue
-            insert_am_record(record)  
-  
-# Commit the transaction and close the connection  
-conn.commit()  
+            insert_am_record(record)
+
+# Commit the transaction and close the connection
+conn.commit()
 conn.close()

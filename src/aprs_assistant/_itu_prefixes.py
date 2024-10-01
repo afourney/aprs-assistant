@@ -758,5 +758,5 @@ ITU_CALLSIGN_PREFIXES = [
     ("N", "United States"),
     ("R", "Russia"),
     ("W", "United States"),
-    ("2", "United Kingdom")
+    ("2", "United Kingdom"),
 ]

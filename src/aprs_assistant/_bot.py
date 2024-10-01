@@ -31,8 +31,8 @@ from ._tool_definitions import (
 tf = TimezoneFinderL(in_memory=True)  # reuse
 MAX_MESSAGES = 20
 
-def generate_reply(fromcall, message):
 
+def generate_reply(fromcall, message):
     try:
         message = message.strip()
         if len(message) == 0:
@@ -53,9 +53,9 @@ def generate_reply(fromcall, message):
 
         # Chat
         messages = _load_chat_history(fromcall)
-        messages.append({ "role": "user", "content": message })
+        messages.append({"role": "user", "content": message})
         response = _generate_reply(fromcall, messages)
-        messages.append({ "role": "assistant", "content": response })
+        messages.append({"role": "assistant", "content": response})
         _save_chat_history(fromcall, messages)
         return response
 
@@ -65,7 +65,6 @@ def generate_reply(fromcall, message):
 
 
 def _generate_reply(fromcall, messages):
-
     # Generate the system message
     position = get_position(fromcall)
     user_local_time = None
@@ -75,18 +74,31 @@ def _generate_reply(fromcall, messages):
     dts = ""
 
     if position is not None:
-        position_str = "\n\nTheir last known position is:\n\n" + json.dumps(position, indent=4)
+        position_str = "\n\nTheir last known position is:\n\n" + json.dumps(
+            position, indent=4
+        )
 
         # Attempt to get the timezone from the user's position
-        user_local_tzname = tf.timezone_at(lat=position["latitude"], lng=position["longitude"])
+        user_local_tzname = tf.timezone_at(
+            lat=position["latitude"], lng=position["longitude"]
+        )
         if user_local_tzname is not None:
             user_local_time = datetime.datetime.now(tz=timezone(user_local_tzname))
-            dts = f"At {fromcall}'s presumed location, " + \
-                  user_local_time.strftime("the current date is %A, %B %d, %Y, and " + \
-                  "the local time is %I:%M:%S %p. (ISO8601 format: " + user_local_time.isoformat(timespec="seconds")) + ")"
+            dts = (
+                f"At {fromcall}'s presumed location, "
+                + user_local_time.strftime(
+                    "the current date is %A, %B %d, %Y, and "
+                    + "the local time is %I:%M:%S %p. (ISO8601 format: "
+                    + user_local_time.isoformat(timespec="seconds")
+                )
+                + ")"
+            )
 
         # Get any weather bulletins
-        bulletins_str = format_noaa_alerts(get_noaa_alerts(position["latitude"], position["longitude"]), abbreviated=True)
+        bulletins_str = format_noaa_alerts(
+            get_noaa_alerts(position["latitude"], position["longitude"]),
+            abbreviated=True,
+        )
         if bulletins_str is None:
             bulletins_str = ""
         else:
@@ -99,17 +111,25 @@ def _generate_reply(fromcall, messages):
     if user_local_time is None:
         user_local_time = datetime.datetime.now(tz=utc)
         user_local_tzname = user_local_time.tzname()
-        dts = user_local_time.strftime("The current UTC date is %A, %B %d, %Y, and " + \
-              "the UTC time is %I:%M:%S %p. (ISO8601 format: " + user_local_time.isoformat(timespec="seconds")) + ")"
+        dts = (
+            user_local_time.strftime(
+                "The current UTC date is %A, %B %d, %Y, and "
+                + "the UTC time is %I:%M:%S %p. (ISO8601 format: "
+                + user_local_time.isoformat(timespec="seconds")
+            )
+            + ")"
+        )
 
     # Lookup the callsign
     callsign_info = get_callsign_info(fromcall)
     callsign_str = ""
     if callsign_info:
-        callsign_str = f"\n\nYou looked up {fromcall}'s callsign and found:\n\n{callsign_info}"
+        callsign_str = (
+            f"\n\nYou looked up {fromcall}'s callsign and found:\n\n{callsign_info}"
+        )
 
     system_message = {
-        "role": "system", 
+        "role": "system",
         "content": f"""You are an AI HAM radio operator, with call sign {BOT_CALLSIGN()}. You were created by KK7CMT. You are at home, in your cozy ham shack, monitoring the gobal APRS network. You have a computer and high-speed access to the Internet. You are answering questions from other human operators in the field who lack an internet connection. To this end, you are relaying vital information. Questions can be about anything -- not just HAM radio.
 
 You are familiar with HAM conventions and shorthands like QSO, CQ, and 73. In all interactions you will follow US FCC guidelines. In particular, you will conduct business in English, and you will avoid using profane or obscene language, and avoid expressing overtly political commentary or opinion (reporting news is fine).
@@ -135,19 +155,24 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
         messages.insert(0, system_message)
 
     # Create a local copy of the chat history, and truncate if necessary
-    inner_messages = [ m for m in messages ] # clone
+    inner_messages = [m for m in messages]  # clone
     assert inner_messages[0]["role"] == "system"
-    inner_messages.pop(0) # Pop system message
+    inner_messages.pop(0)  # Pop system message
     if len(inner_messages) > MAX_MESSAGES:
-        inner_messages = inner_messages[-1*MAX_MESSAGES:] 
-    inner_messages.insert(0, system_message) # Resture system message
+        inner_messages = inner_messages[-1 * MAX_MESSAGES :]
+    inner_messages.insert(0, system_message)  # Resture system message
 
     # Begin answering the question
     message = inner_messages.pop()
     assert message["role"] == "user"
 
     # Let's guess the intent
-    inner_messages.append({"role": "user", "content": f"{fromcall} wrote \"{message}\". What are they likely asking?"})
+    inner_messages.append(
+        {
+            "role": "user",
+            "content": f'{fromcall} wrote "{message}". What are they likely asking?',
+        }
+    )
     response = gpt(inner_messages)
     # print(response.content)
     inner_messages.append(response)
@@ -158,12 +183,17 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
     # API key needed for web search
     if len(os.environ.get("BING_API_KEY", "").strip()) > 0:
         tools.append(TOOL_WEB_SEARCH)
-    
+
     # Some tools only become available when we have a position
     if position is not None:
         tools.append(TOOL_USER_WEATHER)
 
-    inner_messages.append({ "role": "user", "content": f"Based on this, invoke any tools or functions that might be helpful to answer {fromcall}'s question OR just answer directly (e.g., if it's just chit-chat)" })
+    inner_messages.append(
+        {
+            "role": "user",
+            "content": f"Based on this, invoke any tools or functions that might be helpful to answer {fromcall}'s question OR just answer directly (e.g., if it's just chit-chat)",
+        }
+    )
     response = gpt(
         inner_messages,
         tools=tools,
@@ -172,10 +202,9 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
 
     # Handle any tool call results
     if response.tool_calls:
-
         # Add the tool call to the global messages
         mdict = {}
-        for k,v in response.dict().items():
+        for k, v in response.dict().items():
             if v is not None:
                 mdict[k] = v
         messages.append(mdict)
@@ -199,10 +228,13 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
 
             elif function_name == TOOL_USER_WEATHER["function"]["name"]:
                 country_code = position.get("address", {}).get("country_code", "")
-                results = get_weather(lat=position["latitude"], lon=position["longitude"], metric=False if country_code == "us" else True)
+                results = get_weather(
+                    lat=position["latitude"],
+                    lon=position["longitude"],
+                    metric=False if country_code == "us" else True,
+                )
 
             elif function_name == TOOL_REGIONAL_WEATHER["function"]["name"]:
-
                 # Units preference
                 country_code = None
                 if position:
@@ -212,7 +244,7 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
                     city=args.get("city", None),
                     state=args.get("state", None),
                     country=args.get("country", None),
-                    postalcode=args.get("postalcode", None)
+                    postalcode=args.get("postalcode", None),
                 )
                 if weather_loc is None:
                     results = "Unknown location."
@@ -220,7 +252,9 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
                     results = get_weather(
                         lat=weather_loc["lat"],
                         lon=weather_loc["lon"],
-                        metric=False if country_code == "us" else True, # User's location, (local preference)
+                        metric=False
+                        if country_code == "us"
+                        else True,  # User's location, (local preference)
                     )
             else:
                 results = f"Unknown function: {function_name}"
@@ -228,21 +262,27 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
             # print(f"Results:\n{results}")
 
             tool_response_msg = {
-                "role":"tool",
-                "tool_call_id":tool_call.id,
+                "role": "tool",
+                "tool_call_id": tool_call.id,
                 "name": tool_call.function.name,
-                "content": results
+                "content": results,
             }
             inner_messages.append(tool_response_msg)
-            messages.append(tool_response_msg) # Add it to the conversation as well
+            messages.append(tool_response_msg)  # Add it to the conversation as well
 
-    inner_messages.append({ "role": "user", "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly."})
+    inner_messages.append(
+        {
+            "role": "user",
+            "content": f"Given these results, write an answer to {fromcall}'s original question \"{message}\", exactly as you would write it to them, verbatim. Your response must be as helpful and succinct as possible; at most 10 words can be sent in an APRS response. Remember, {fromcall} does not have access to the internet -- that's why they are using APRS. So do not direct them to websites, and instead convey the most important information directly.",
+        }
+    )
     reply = gpt(inner_messages).content
 
-    if len(reply) > 70: 
+    if len(reply) > 70:
         reply = reply[0:70]
 
     return reply.rstrip()
+
 
 def _load_chat_history(callsign):
     fname = _get_chat_file(callsign)
@@ -252,7 +292,7 @@ def _load_chat_history(callsign):
 
             # Check for timeouts
             if history["time"] + SESSION_TIMEOUT < time.time():
-                 # print(f"{callsign}'s session timed out. Starting new session.")
+                # print(f"{callsign}'s session timed out. Starting new session.")
                 _reset_chat_history(callsign)
                 return []
             else:
@@ -266,12 +306,17 @@ def _save_chat_history(callsign, messages):
     os.makedirs(CHATS_DIR, exist_ok=True)
     fname = _get_chat_file(callsign)
     with open(fname, "wt") as fh:
-        fh.write(json.dumps({ 
-            "version": 1,
-            "callsign": callsign,
-            "time": time.time(),
-            "messages": messages, 
-        }, indent=4))
+        fh.write(
+            json.dumps(
+                {
+                    "version": 1,
+                    "callsign": callsign,
+                    "time": time.time(),
+                    "messages": messages,
+                },
+                indent=4,
+            )
+        )
 
 
 def _get_chat_file(callsign):

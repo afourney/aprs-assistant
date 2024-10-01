@@ -12,6 +12,7 @@ import re
 import os
 from urllib.parse import quote, quote_plus, unquote, urlparse, urlunparse
 
+
 def bing_search(query, interleave_results=True):
     results = _bing_api_call(query)
     snippets = {}
@@ -36,7 +37,9 @@ def bing_search(query, interleave_results=True):
                 snippet += "\n" + _processFacts(page["richFacts"])
 
             if "mentions" in page:
-                snippet += "\nMentions: " + ", ".join(e["name"] for e in page["mentions"])
+                snippet += "\nMentions: " + ", ".join(
+                    e["name"] for e in page["mentions"]
+                )
 
             if page["id"] not in snippets:
                 snippets[page["id"]] = list()
@@ -54,9 +57,7 @@ def bing_search(query, interleave_results=True):
     if "news" in results:
         label = "[NEWS] " if interleave_results else ""
         for page in results["news"]["value"]:
-            snippet = (
-                f"__POS__. {label}{_markdown_link(page['name'], page['url'])}\n{page.get('description', '')}".strip()
-            )
+            snippet = f"__POS__. {label}{_markdown_link(page['name'], page['url'])}\n{page.get('description', '')}".strip()
 
             if "datePublished" in page:
                 snippet += "\nDate published: " + page["datePublished"].split("T")[0]
@@ -65,7 +66,9 @@ def bing_search(query, interleave_results=True):
                 snippet += "\n" + _processFacts(page["richFacts"])
 
             if "mentions" in page:
-                snippet += "\nMentions: " + ", ".join(e["name"] for e in page["mentions"])
+                snippet += "\nMentions: " + ", ".join(
+                    e["name"] for e in page["mentions"]
+                )
 
             news_snippets.append(snippet)
 
@@ -89,7 +92,9 @@ def bing_search(query, interleave_results=True):
                 snippet += "\n" + _processFacts(page["richFacts"])
 
             if "mentions" in page:
-                snippet += "\nMentions: " + ", ".join(e["name"] for e in page["mentions"])
+                snippet += "\nMentions: " + ", ".join(
+                    e["name"] for e in page["mentions"]
+                )
 
             video_snippets.append(snippet)
 
@@ -148,6 +153,7 @@ def bing_search(query, interleave_results=True):
 
     return f"## A Bing search for '{query}' found {idx} results:\n\n" + content.strip()
 
+
 def _bing_api_call(query: str):
     # Prepare the request parameters
     request_kwargs = {}
@@ -161,11 +167,14 @@ def _bing_api_call(query: str):
     request_kwargs["stream"] = False
 
     # Make the request
-    response = requests.get("https://api.bing.microsoft.com/v7.0/search", **request_kwargs)
+    response = requests.get(
+        "https://api.bing.microsoft.com/v7.0/search", **request_kwargs
+    )
     response.raise_for_status()
     results = response.json()
 
     return results
+
 
 def _markdown_link(anchor, href):
     try:
@@ -176,6 +185,7 @@ def _markdown_link(anchor, href):
     except ValueError:  # It's not clear if this ever gets thrown
         return f"[{anchor}]({href})"
 
+
 def _bing_news_call():
     request_kwargs = {}
     request_kwargs["headers"] = {}
@@ -183,7 +193,9 @@ def _bing_news_call():
     request_kwargs["stream"] = False
 
     # Make the request
-    response = requests.get("https://api.bing.microsoft.com/v7.0/news/search?q=&mkt=en-us", **request_kwargs)
+    response = requests.get(
+        "https://api.bing.microsoft.com/v7.0/news/search?q=&mkt=en-us", **request_kwargs
+    )
     response.raise_for_status()
     results = response.json()
     return results

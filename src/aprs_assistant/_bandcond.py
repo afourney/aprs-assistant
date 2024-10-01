@@ -9,6 +9,7 @@ import xmltodict
 from ._cache import read_cache, write_cache
 from ._constants import SECONDS_IN_MINUTE
 
+
 def get_band_conditions():
     solar_json = xmltodict.parse(get_solarxml())["solar"]["solardata"]
 
@@ -46,16 +47,14 @@ def get_solarxml():
         return cached_data
     else:
         data = _get_solarxml()
-        write_cache(cache_key, data, expires_in=SECONDS_IN_MINUTE*30)
+        write_cache(cache_key, data, expires_in=SECONDS_IN_MINUTE * 30)
         return data
 
 
 def _get_solarxml():
-    headers = { "User-Agent": "aprsd_gpt_plugin" }
+    headers = {"User-Agent": "aprsd_gpt_plugin"}
     response = requests.get(
-        f"https://www.hamqsl.com/solarxml.php",
-        headers=headers,
-        stream=False
+        f"https://www.hamqsl.com/solarxml.php", headers=headers, stream=False
     )
     response.raise_for_status()
     return response.text

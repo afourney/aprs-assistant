@@ -4,9 +4,11 @@
 import os
 import json
 from openai import AzureOpenAI, OpenAI
-#from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+# from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 _oai_client = None
+
 
 def gpt(messages, model="gpt-4o-2024-08-06", json_mode=False, **kwargs):
     global _oai_client

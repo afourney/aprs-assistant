@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from ._cache import read_cache, write_cache
 from ._constants import USER_AGENT, SECONDS_IN_MINUTE, SECONDS_IN_WEEK
 
+
 def get_position(callsign):
     aprsfi_data = aprsfi_get_position(callsign)
 
@@ -22,10 +23,10 @@ def get_position(callsign):
 
     location_data = reverse_geocode(lat, lon)
 
-    result = { 
+    result = {
         "latitude": lat,
         "longitude": lon,
-        "maidenhead_gridsquare": maidenhead.to_maiden(lat, lon, 4)
+        "maidenhead_gridsquare": maidenhead.to_maiden(lat, lon, 4),
     }
 
     if "speed" in aprsfi_data:
@@ -64,7 +65,7 @@ def aprsfi_get_position(callsign):
         return cached_data
     else:
         data = _aprsfi_get_position(callsign)
-        write_cache(cache_key, data, expires_in=SECONDS_IN_MINUTE*5)
+        write_cache(cache_key, data, expires_in=SECONDS_IN_MINUTE * 5)
         return data
 
 
@@ -72,12 +73,12 @@ def _aprsfi_get_position(callsign):
     api_key = os.environ.get("APRSFI_API_KEY", "").strip()
     if api_key == "":
         return None
-    
-    headers = { "User-Agent": USER_AGENT }
+
+    headers = {"User-Agent": USER_AGENT}
     response = requests.get(
         f"https://api.aprs.fi/api/get?name={callsign}&what=loc&apikey={api_key}&format=json",
         headers=headers,
-        stream=False
+        stream=False,
     )
     response.raise_for_status()
     response_data = response.json()
@@ -95,23 +96,24 @@ def reverse_geocode(lat, lon):
         return cached_data
     else:
         data = _reverse_geocode(lat, lon)
-        write_cache(cache_key, data, expires_in=2*SECONDS_IN_WEEK)
+        write_cache(cache_key, data, expires_in=2 * SECONDS_IN_WEEK)
         return data
 
 
 def _reverse_geocode(lat, lon):
-    headers = { "User-Agent": USER_AGENT }
+    headers = {"User-Agent": USER_AGENT}
     response = requests.get(
         f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=jsonv2",
         headers=headers,
-        stream=False
+        stream=False,
     )
     response.raise_for_status()
     return response.json()
 
 
-def geocode(query=None, street=None, city=None, state=None, country=None, postalcode=None):
-
+def geocode(
+    query=None, street=None, city=None, state=None, country=None, postalcode=None
+):
     # Non-empty query
     if query is not None and len(query.strip()) > 0:
         result = _geocode(query=query)
@@ -119,12 +121,16 @@ def geocode(query=None, street=None, city=None, state=None, country=None, postal
             return result
 
     # Try with everything
-    result = _geocode(street=street, city=city, state=state, country=country, postalcode=postalcode)
+    result = _geocode(
+        street=street, city=city, state=state, country=country, postalcode=postalcode
+    )
     if result is not None:
         return result
 
     # Try without the city -- it can sometimes be wrong
-    result = _geocode(street=street, state=state, country=country, postalcode=postalcode)
+    result = _geocode(
+        street=street, state=state, country=country, postalcode=postalcode
+    )
     if result is not None:
         return result
 
@@ -134,29 +140,43 @@ def geocode(query=None, street=None, city=None, state=None, country=None, postal
         return result
 
     # Just query it
-    new_query = ("" if city is None else city) + " " + \
-                ("" if state is None else state) + " " + \
-                ("" if country is None else country) 
+    new_query = (
+        ("" if city is None else city)
+        + " "
+        + ("" if state is None else state)
+        + " "
+        + ("" if country is None else country)
+    )
     new_query = re.sub(r"\s+", " ", new_query).strip()
-    
+
     result = _geocode(query=new_query)
     if result is not None:
         return result
 
 
-def _geocode(query=None, street=None, city=None, state=None, country=None, postalcode=None):
+def _geocode(
+    query=None, street=None, city=None, state=None, country=None, postalcode=None
+):
     cache_key = f"_geocode:{query}:{street}:{city}:{state}:{country}:{postalcode}"
     cached_data = read_cache(cache_key)
     if cached_data is not None:
         return cached_data
     else:
-        data = _geocode_attempt(query=query, street=street, city=city, state=state, country=country, postalcode=postalcode)
-        write_cache(cache_key, data, expires_in=52*SECONDS_IN_WEEK)
+        data = _geocode_attempt(
+            query=query,
+            street=street,
+            city=city,
+            state=state,
+            country=country,
+            postalcode=postalcode,
+        )
+        write_cache(cache_key, data, expires_in=52 * SECONDS_IN_WEEK)
         return data
 
 
-def _geocode_attempt(query=None, street=None, city=None, state=None, country=None, postalcode=None):
-
+def _geocode_attempt(
+    query=None, street=None, city=None, state=None, country=None, postalcode=None
+):
     args = {}
     if street:
         args["street"] = street.strip()
@@ -178,11 +198,12 @@ def _geocode_attempt(query=None, street=None, city=None, state=None, country=Non
     if len(args) == 0:
         return None
 
-    headers = { "User-Agent": USER_AGENT }
+    headers = {"User-Agent": USER_AGENT}
     response = requests.get(
-        "https://nominatim.openstreetmap.org/search.php?format=jsonv2&" + urlencode(args),
+        "https://nominatim.openstreetmap.org/search.php?format=jsonv2&"
+        + urlencode(args),
         headers=headers,
-        stream=False
+        stream=False,
     )
 
     response.raise_for_status()
@@ -192,5 +213,5 @@ def _geocode_attempt(query=None, street=None, city=None, state=None, country=Non
     response_json = json.loads(response.text)
     if isinstance(response_json, list) and len(response_json) > 0:
         return response_json[0]
-    else: # Return None rather than empty lists or dictionaries
+    else:  # Return None rather than empty lists or dictionaries
         return None

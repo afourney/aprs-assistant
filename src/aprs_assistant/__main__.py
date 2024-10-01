@@ -8,21 +8,29 @@ from ._bot import generate_reply
 from ._constants import BOT_CALLSIGN, FCC_DATABASE
 
 if os.environ.get("OPENAI_API_KEY", "").strip() == "":
-    raise ValueError("No OPENAI_API_KEY. Please set the OPENAI_API_KEY environment variable.")
+    raise ValueError(
+        "No OPENAI_API_KEY. Please set the OPENAI_API_KEY environment variable."
+    )
 
 if os.environ.get("BING_API_KEY", "").strip() == "":
-    sys.stderr.write("Warning: No BING_API_KEY. Web searches are disabled.\nPlease set the BING_API_KEY environment variable.\n\n")
+    sys.stderr.write(
+        "Warning: No BING_API_KEY. Web searches are disabled.\nPlease set the BING_API_KEY environment variable.\n\n"
+    )
 
 if os.environ.get("APRSFI_API_KEY", "").strip() == "":
-    sys.stderr.write("Warning: No APRSFI_API_KEY. Location lookups, and localized features (e.g., local weather) are disabled.\nPlease set the APRSFI_API_KEY environment variable.\n\n")
+    sys.stderr.write(
+        "Warning: No APRSFI_API_KEY. Location lookups, and localized features (e.g., local weather) are disabled.\nPlease set the APRSFI_API_KEY environment variable.\n\n"
+    )
 
 if not os.path.isfile(FCC_DATABASE):
-    sys.stderr.write(f"Warning: FCC Database not found at '{FCC_DATABASE}'.\nThis is easily fixed!\nSee './tools/parse_fcc_uls/README.md'\n\n")
-    
+    sys.stderr.write(
+        f"Warning: FCC Database not found at '{FCC_DATABASE}'.\nThis is easily fixed!\nSee './tools/parse_fcc_uls/README.md'\n\n"
+    )
+
 if len(sys.argv) < 2:
     sys.stderr.write("SYNTAX: python -m aprs-assistant <YOUR_CALLSIGN>\n\n")
     sys.exit(0)
-    
+
 fromcall = sys.argv[1]
 while True:
     request = input(f"{fromcall}: ").strip()

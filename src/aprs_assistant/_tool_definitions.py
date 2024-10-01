@@ -52,7 +52,7 @@ TOOL_REGIONAL_WEATHER = {
                 "postalcode": {
                     "type": "string",
                     "description": "The zipcode or potal code.",
-                }
+                },
             },
             "required": [],
         },

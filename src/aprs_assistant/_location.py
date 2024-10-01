@@ -13,13 +13,19 @@ from ._constants import USER_AGENT, SECONDS_IN_MINUTE, SECONDS_IN_WEEK
 
 
 def get_position(callsign):
-    aprsfi_data = aprsfi_get_position(callsign)
+    positions = aprsfi_get_positions(aprsfi_get_targets(callsign))
 
-    if aprsfi_data is None:
+    if positions is None or len(positions) == 0:
         return None
 
-    lat = float(aprsfi_data["lat"])
-    lon = float(aprsfi_data["lng"])
+    # Get the latest position
+    latest_position = positions[0]
+    for i in range(1, len(positions)):
+        if float(positions[i]["lasttime"]) > float(latest_position["lasttime"]):
+            latest_position = positions[i]
+
+    lat = float(latest_position["lat"])
+    lon = float(latest_position["lng"])
 
     location_data = reverse_geocode(lat, lon)
 
@@ -29,12 +35,12 @@ def get_position(callsign):
         "maidenhead_gridsquare": maidenhead.to_maiden(lat, lon, 4),
     }
 
-    if "speed" in aprsfi_data:
-        result["speed_in_kph"] = int(aprsfi_data["speed"])
-    if "altitude" in aprsfi_data:
-        result["altitude_in_meters"] = int(aprsfi_data["altitude"])
-    if "course" in aprsfi_data:
-        result["heading_in_degrees"] = int(aprsfi_data["course"])
+    if "speed" in latest_position:
+        result["speed_in_kph"] = int(latest_position["speed"])
+    if "altitude" in latest_position:
+        result["altitude_in_meters"] = int(latest_position["altitude"])
+    if "course" in latest_position:
+        result["heading_in_degrees"] = int(latest_position["course"])
 
     if "name" in location_data and len(location_data["name"]) > 0:
         result["name"] = location_data["name"]
@@ -58,33 +64,45 @@ def get_position(callsign):
     return result
 
 
-def aprsfi_get_position(callsign):
-    cache_key = f"aprsfi_get_position:{callsign}"
+def aprsfi_get_targets(callsign):
+    # No disambiguation for now
+    return [callsign]
+
+
+def aprsfi_get_positions(callsigns):
+    """
+    Get the latest position of one or more callsigns.
+    """
+    assert isinstance(callsigns, list)
+
+    cache_key = f"aprsfi_get_position:{','.join(callsigns)}"
     cached_data = read_cache(cache_key)
     if cached_data is not None:
         return cached_data
     else:
-        data = _aprsfi_get_position(callsign)
+        data = _aprsfi_get_positions(callsigns)
         write_cache(cache_key, data, expires_in=SECONDS_IN_MINUTE * 5)
         return data
 
 
-def _aprsfi_get_position(callsign):
+def _aprsfi_get_positions(callsigns):
+    assert isinstance(callsigns, list)
+
     api_key = os.environ.get("APRSFI_API_KEY", "").strip()
     if api_key == "":
         return None
 
     headers = {"User-Agent": USER_AGENT}
     response = requests.get(
-        f"https://api.aprs.fi/api/get?name={callsign}&what=loc&apikey={api_key}&format=json",
+        f"https://api.aprs.fi/api/get?name={','.join(callsigns)}&what=loc&apikey={api_key}&format=json",
         headers=headers,
         stream=False,
     )
     response.raise_for_status()
     response_data = response.json()
 
-    if response_data.get("result") == "ok" and len(response_data["entries"]) > 0:
-        return response_data["entries"][0]
+    if response_data.get("result") == "ok":
+        return response_data["entries"]
 
     return None
 

@@ -13,8 +13,51 @@ import os
 from urllib.parse import quote, quote_plus, unquote, urlparse, urlunparse
 
 
-def bing_search(query, lat=None, lon=None, interleave_results=True):
-    results = _bing_api_call(query, lat, lon)
+# from: https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/reference/market-codes
+BING_MARKETS = [
+    ("Argentina", "Spanish", "es-AR"),
+    ("Australia", "English", "en-AU"),
+    ("Austria", "German", "de-AT"),
+    ("Belgium", "Dutch", "nl-BE"),
+    ("Belgium", "French", "fr-BE"),
+    ("Brazil", "Portuguese", "pt-BR"),
+    ("Canada", "English", "en-CA"),
+    ("Canada", "French", "fr-CA"),
+    ("Chile", "Spanish", "es-CL"),
+    ("Denmark", "Danish", "da-DK"),
+    ("Finland", "Finnish", "fi-FI"),
+    ("France", "French", "fr-FR"),
+    ("Germany", "German", "de-DE"),
+    ("Hong Kong SAR", "Traditional Chinese", "zh-HK"),
+    ("India", "English", "en-IN"),
+    ("Indonesia", "English", "en-ID"),
+    ("Italy", "Italian", "it-IT"),
+    ("Japan", "Japanese", "ja-JP"),
+    ("Korea", "Korean", "ko-KR"),
+    ("Malaysia", "English", "en-MY"),
+    ("Mexico", "Spanish", "es-MX"),
+    ("Netherlands", "Dutch", "nl-NL"),
+    ("New Zealand", "English", "en-NZ"),
+    ("Norway", "Norwegian", "no-NO"),
+    ("People's republic of China", "Chinese", "zh-CN"),
+    ("Poland", "Polish", "pl-PL"),
+    ("Republic of the Philippines", "English", "en-PH"),
+    ("Russia", "Russian", "ru-RU"),
+    ("South Africa", "English", "en-ZA"),
+    ("Spain", "Spanish", "es-ES"),
+    ("Sweden", "Swedish", "sv-SE"),
+    ("Switzerland", "French", "fr-CH"),
+    ("Switzerland", "German", "de-CH"),
+    ("Taiwan", "Traditional Chinese", "zh-TW"),
+    ("Turkey", "Turkish", "tr-TR"),
+    ("United Kingdom", "English", "en-GB"),
+    ("United States", "English", "en-US"),
+    ("United States", "Spanish", "es-US"),
+]
+
+
+def bing_search(query, lat=None, lon=None, interleave_results=True, market=None):
+    results = _bing_api_call(query, lat, lon, market)
     snippets = {}
 
     def _processFacts(elm):
@@ -154,7 +197,11 @@ def bing_search(query, lat=None, lon=None, interleave_results=True):
     return f"## A Bing search for '{query}' found {idx} results:\n\n" + content.strip()
 
 
-def _bing_api_call(query, lat=None, lon=None):
+def _bing_api_call(query, lat=None, lon=None, market=None):
+    # Resolve the market if it's just a country code
+    if isinstance(market, str) and len(market) == 2:
+        market = _get_market(market)
+
     # Prepare the request parameters
     request_kwargs = {}
     request_kwargs["headers"] = {}
@@ -170,6 +217,10 @@ def _bing_api_call(query, lat=None, lon=None):
     request_kwargs["params"]["q"] = query
     request_kwargs["params"]["textDecorations"] = False
     request_kwargs["params"]["textFormat"] = "raw"
+
+    if market is not None:
+        request_kwargs["params"]["mkt"] = market
+
     request_kwargs["stream"] = False
 
     # Make the request
@@ -190,3 +241,12 @@ def _markdown_link(anchor, href):
         return f"[{anchor}]({href})"
     except ValueError:  # It's not clear if this ever gets thrown
         return f"[{anchor}]({href})"
+
+
+def _get_market(country_code):
+    country_code = country_code.upper()
+    for market in BING_MARKETS:
+        cc = market[2].split("-")[1]
+        if cc.upper() == country_code:
+            return market[2]
+    return None

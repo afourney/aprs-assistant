@@ -18,7 +18,7 @@ from ._location import get_position, geocode
 from ._bing import bing_search
 from ._bandcond import get_band_conditions
 from ._weather import get_weather, format_noaa_alerts, get_noaa_alerts
-from ._callsign import get_callsign_info
+from ._callsign import get_callsign_info, itu_prefix_lookup
 
 from ._tool_definitions import (
     TOOL_WEB_SEARCH,
@@ -73,10 +73,16 @@ def _generate_reply(fromcall, messages):
     bulletins_str = ""
     dts = ""
 
+    country_code = None
+
     if position is not None:
         position_str = "\n\nTheir last known position is:\n\n" + json.dumps(
             position, indent=4
         )
+
+        # Extract the country code
+        if "address" in position and "country_code" in position["address"]:
+            country_code = position["address"]["country_code"]
 
         # Attempt to get the timezone from the user's position
         user_local_tzname = tf.timezone_at(
@@ -127,6 +133,12 @@ def _generate_reply(fromcall, messages):
         callsign_str = (
             f"\n\nYou looked up {fromcall}'s callsign and found:\n\n{callsign_info}"
         )
+
+    # Messy, but we will clean this up later
+    if country_code is None:
+        itu_prefix = itu_prefix_lookup(fromcall)
+        if itu_prefix is not None:
+            country_code = itu_prefix.country_code
 
     system_message = {
         "role": "system",
@@ -221,9 +233,10 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
                         args["query"],
                         lat=position["latitude"],
                         lon=position["longitude"],
+                        market=country_code,
                     )
                 else:
-                    results = bing_search(args["query"])
+                    results = bing_search(args["query"], market=country_code)
 
             elif function_name == TOOL_CALLSIGN_SEARCH["function"]["name"]:
                 results = get_callsign_info(args["callsign"])
@@ -234,11 +247,10 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
                 results = get_band_conditions()
 
             elif function_name == TOOL_USER_WEATHER["function"]["name"]:
-                country_code = position.get("address", {}).get("country_code", "")
                 results = get_weather(
                     lat=position["latitude"],
                     lon=position["longitude"],
-                    metric=False if country_code == "us" else True,
+                    metric=False if country_code.upper() == "US" else True,
                 )
 
             elif function_name == TOOL_REGIONAL_WEATHER["function"]["name"]:

@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import maidenhead
+from typing import NamedTuple
 
 from ._cache import read_cache, write_cache
 from ._constants import FCC_DATABASE, SECONDS_IN_MINUTE, USER_AGENT
@@ -88,18 +89,24 @@ def get_callsign_info(callsign, include_address=True):
         return result
 
     # No FCC record, but what else can we find?
-    itu_country = itu_prefix_lookup(callsign)
-    if itu_country:
-        return f"No information about {callsign}, but the call sign was likely issued by {itu_country}."
+    itu_prefix = itu_prefix_lookup(callsign)
+    if itu_prefix:
+        return f"No information about {callsign}, but the call sign was likely issued by {itu_prefix.country_name}."
 
     return None
+
+
+class ITU_Prefix(NamedTuple):
+    prefix: str
+    country_name: str
+    country_code: str
 
 
 def itu_prefix_lookup(callsign):
     callsign = callsign.strip().upper()
     for prefix in ITU_CALLSIGN_PREFIXES:
         if callsign.startswith(prefix[0]):
-            return prefix[1]
+            return ITU_Prefix(prefix[0], prefix[1], prefix[2])
     return None
 
 

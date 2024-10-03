@@ -31,6 +31,7 @@ dependencies = [
   "xmltodict",
   "timezonefinder",
   "pytz",
+  "haversine",
 ]
 
 [project.urls]

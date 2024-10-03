@@ -11,9 +11,11 @@ def BOT_CALLSIGN():
 
 DATA_DIR = os.path.join(os.getcwd(), "data")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
+USERS_DIR = os.path.join(DATA_DIR, "users")
 CHATS_DIR = os.path.join(DATA_DIR, "chats")
 LABELED_DIR = os.path.join(DATA_DIR, "labeled")
 FCC_DATABASE = os.path.join(DATA_DIR, "fcc_uls.db")
+REPEATER_DATABASE = os.path.join(DATA_DIR, "repeaters.db")
 
 USER_AGENT = "aprs-assistant/" + __version__
 

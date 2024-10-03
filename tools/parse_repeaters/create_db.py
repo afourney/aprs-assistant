@@ -44,6 +44,18 @@ cursor.execute(create_mode_index)
 cursor.execute(create_lat_lon_index)
 
 
+def _strip(s):
+    if s is not None:
+        return s.strip()
+    return None
+
+
+def _upper(s):
+    if s is not None:
+        return s.strip().upper()
+    return None
+
+
 # Function to insert records into the Repeater table
 def insert_repeater_record(record):
     insert_query = """  
@@ -70,21 +82,21 @@ def insert_repeater_record(record):
         insert_query,
         (
             record["id"],
-            record["callsign"],
+            _upper(record["callsign"]),
             record["latitude"],
             record["longitude"],
-            record["city"],
-            record["group"],
-            record["internet_node"],
-            record["mode"],
-            record["encode"],
-            record["decode"],
+            _strip(record["city"]),
+            _upper(record["group"]),
+            _strip(record["internet_node"]),
+            _upper(record["mode"]),
+            _strip(record["encode"]),
+            _strip(record["decode"]),
             record["frequency"],
             record["offset"],
-            record["description"],
-            record["power"],
+            _strip(record["description"]),
+            _strip(record["power"]),
             record["operational"],
-            record["restriction"],
+            _strip(record["restriction"]),
         ),
     )
 

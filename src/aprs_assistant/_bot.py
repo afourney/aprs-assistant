@@ -19,6 +19,7 @@ from ._bing import bing_search
 from ._bandcond import get_band_conditions
 from ._weather import get_weather, format_noaa_alerts, get_noaa_alerts
 from ._callsign import get_callsign_info, itu_prefix_lookup
+from ._repeaters import search_repeaters_by_location, format_repeater
 
 from ._tool_definitions import (
     TOOL_WEB_SEARCH,
@@ -26,6 +27,7 @@ from ._tool_definitions import (
     TOOL_REGIONAL_WEATHER,
     TOOL_BAND_CONDITIONS,
     TOOL_CALLSIGN_SEARCH,
+    TOOL_NEARBY_REPEATERS,
 )
 
 tf = TimezoneFinderL(in_memory=True)  # reuse
@@ -190,7 +192,12 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
     inner_messages.append(response)
 
     # Determine if it can be answered directly or if we should search
-    tools = [TOOL_BAND_CONDITIONS, TOOL_REGIONAL_WEATHER, TOOL_CALLSIGN_SEARCH]
+    tools = [
+        TOOL_BAND_CONDITIONS,
+        TOOL_REGIONAL_WEATHER,
+        TOOL_CALLSIGN_SEARCH,
+        TOOL_NEARBY_REPEATERS,
+    ]
 
     # API key needed for web search
     if len(os.environ.get("BING_API_KEY", "").strip()) > 0:
@@ -275,6 +282,22 @@ IN THE EVENT OF AN EMERGENCY, DO NOT OFFER TO SEND HELP OR IMPLY THAT YOU CAN AL
                         if country_code == "us"
                         else True,  # User's location, (local preference)
                     )
+
+            elif function_name == TOOL_NEARBY_REPEATERS["function"]["name"]:
+                results = ""
+                n = 0
+
+                for r in search_repeaters_by_location(
+                    lat=position["latitude"], lon=position["longitude"]
+                ):
+                    n += 1
+                    results += format_repeater(r).strip() + "\n\n"
+                    if n >= 10:
+                        break
+
+                if n == 0:
+                    results = "No repeaters found nearby.\nTry searching the web, or checking another database."
+
             else:
                 results = f"Unknown function: {function_name}"
 

@@ -89,3 +89,16 @@ TOOL_CALLSIGN_SEARCH = {
         },
     },
 }
+
+TOOL_NEARBY_REPEATERS = {
+    "type": "function",
+    "function": {
+        "name": "nearby_repeaters",
+        "description": "Return a list of amateur radio repeaters near the user's current location.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+}
